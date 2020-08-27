@@ -33,6 +33,8 @@ class ShoppingCart extends Component
     /** Triggered on after cart cost calculation */
     const EVENT_COST_CALCULATION = 'costCalculation';
 
+    private $types = ['piece', 'meter', 'sample'];
+
     /**
      * If true (default) cart will be automatically stored in and loaded from session.
      * If false - you should do this manually with saveToSession and loadFromSession methods
@@ -89,28 +91,43 @@ class ShoppingCart extends Component
     }
 
     /**
-     * @param CartPositionInterface $position
+     * @param $position
      * @param int $quantity
+     * @param string $type
      */
-    public function put($position, $quantity = 1)
+    public function put($position, $quantity = 1, $type = 'piece')
     {
-        if (isset($this->_positions[$position->getId()])) {
-            $this->_positions[$position->getId()]->setQuantity(
-                $this->_positions[$position->getId()]->getQuantity() + $quantity);
+        if (isset($this->_positions[$position->getId().$type])) {
+            $this->_positions[$position->getId().$type]->setQuantity(
+                $this->_positions[$position->getId().$type]->getQuantity() + $quantity);
         } else {
             $position->setQuantity($quantity);
-            $this->_positions[$position->getId()] = $position;
+            $position->setType($type);
+            $this->_positions[$position->getId().$type] = $position;
         }
         $this->trigger(self::EVENT_POSITION_PUT, new CartActionEvent([
             'action' => CartActionEvent::ACTION_POSITION_PUT,
-            'position' => $this->_positions[$position->getId()],
+            'position' => $this->_positions[$position->getId().$type],
         ]));
         $this->trigger(self::EVENT_CART_CHANGE, new CartActionEvent([
             'action' => CartActionEvent::ACTION_POSITION_PUT,
-            'position' => $this->_positions[$position->getId()],
+            'position' => $this->_positions[$position->getId().$type],
         ]));
         if ($this->storeInSession)
             $this->saveToSession();
+    }
+
+    /**
+     * @param $position
+     * @param string $type
+     * @return int
+     */
+    public function get($position, $type = 'piece')
+    {
+        if (isset($this->_positions[$position->getId().$type])) {
+            return $this->_positions[$position->getId().$type]->getQuantity();
+        }
+        return 0;
     }
 
     /**
@@ -126,26 +143,26 @@ class ShoppingCart extends Component
      * @param CartPositionInterface $position
      * @param int $quantity
      */
-    public function update($position, $quantity)
+    public function update($position, $quantity, $type = 'piece')
     {
         if ($quantity <= 0) {
-            $this->remove($position);
+            $this->remove($position, $type);
             return;
         }
 
-        if (isset($this->_positions[$position->getId()])) {
-            $this->_positions[$position->getId()]->setQuantity($quantity);
+        if (isset($this->_positions[$position->getId().$type])) {
+            $this->_positions[$position->getId().$type]->setQuantity($quantity);
         } else {
             $position->setQuantity($quantity);
-            $this->_positions[$position->getId()] = $position;
+            $this->_positions[$position->getId().$type] = $position;
         }
         $this->trigger(self::EVENT_POSITION_UPDATE, new CartActionEvent([
             'action' => CartActionEvent::ACTION_UPDATE,
-            'position' => $this->_positions[$position->getId()],
+            'position' => $this->_positions[$position->getId().$type],
         ]));
         $this->trigger(self::EVENT_CART_CHANGE, new CartActionEvent([
             'action' => CartActionEvent::ACTION_UPDATE,
-            'position' => $this->_positions[$position->getId()],
+            'position' => $this->_positions[$position->getId().$type],
         ]));
         if ($this->storeInSession)
             $this->saveToSession();
@@ -155,9 +172,9 @@ class ShoppingCart extends Component
      * Removes position from the cart
      * @param CartPositionInterface $position
      */
-    public function remove($position)
+    public function remove($position, $type = 'piece')
     {
-        $this->removeById($position->getId());
+        $this->removeById($position->getId().$type);
     }
 
     /**
